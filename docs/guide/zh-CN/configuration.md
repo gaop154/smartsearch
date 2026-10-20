@@ -57,7 +57,7 @@
 - xAI 官方联网搜索通过 `XAI_*` 走 `/responses`。OpenAI-compatible 中转默认走 `/chat/completions`；只有中转明确支持文档化的 Responses 子集时才设置 `OPENAI_COMPATIBLE_API_MODE=responses`。
 - `chat-completions` 不发送搜索工具；如果中转站上的模型只能通过 Responses 的 `web_search` 工具联网（例如 grok），把 `XAI_API_URL`、`XAI_API_KEY`、`XAI_MODEL` 指向该中转站，并用 `smart-search diagnose openai-compatible` 的“联网搜索能力”检查确认。
 - `smart-search search --stream` 会给 xAI Responses 和 OpenAI-compatible 搜索设置 `stream=true`，包括 Jev 调度的 Grok 搜索；`--no-stream` 关闭本次流式请求。`OPENAI_COMPATIBLE_STREAM=true` 仍只设置 OpenAI-compatible 搜索和 provider 侧 fetch 的默认流式行为。
-- `XAI_REASONING_EFFORT` 接受 `low`、`medium`、`high`，大小写不敏感，保存为小写。可选；设置后在 xAI Responses 请求中发送 reasoning.effort，默认不发送。Jev 调度的 Grok 搜索同样适用。provider attempts 记录实际 `stream` 和 `reasoning_effort`，`doctor` 显示 `XAI_REASONING_EFFORT`。上游因不支持 reasoning 返回 4xx 时原样报错，不删除字段重发。
+- `XAI_REASONING_EFFORT` 接受 `none`、`low`、`medium`、`high`、`xhigh`、`auto`，`minimal`、`max` 为别名，大小写不敏感，保存为小写。可选；设置后在 xAI Responses 请求中发送 reasoning.effort，默认不发送。直连 xAI 官方 API 仅支持 `low`、`medium`、`high`，扩展档位面向兼容中转（如 sub2api）。Jev 调度的 Grok 搜索同样适用。provider attempts 记录实际 `stream` 和 `reasoning_effort`，`doctor` 显示 `XAI_REASONING_EFFORT`。上游因不支持 reasoning 返回 4xx 时原样报错，不删除字段重发。
 - `SMART_SEARCH_TIMEOUT_SECONDS` 是持久化的 `search` 总时限；环境变量覆盖本机配置文件，单次 `search --timeout SECONDS` 覆盖两者，默认 `300` 秒。
 - 主搜索 provider 直接用剩余的共享预算作为读取上限，不再额外套一层固定的 provider 读超时，因此慢推理模型不会在共享 deadline 之前被提前掐断。
 - `OPENAI_COMPATIBLE_FALLBACK_MODELS` 是失败后接力，不是时间片。主模型会使用剩余的共享 main-search 预算；只有硬失败（例如 `model_not_found`、鉴权失败、空结果、不可重试协议错误）才会换兜底模型。`doctor` 和 `diagnose openai-compatible` 会在兜底模型不在 `/models` 里时给出警告。

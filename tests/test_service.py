@@ -719,6 +719,25 @@ def test_xai_reasoning_effort_validation(monkeypatch, tmp_path, value):
     assert service.config.xai_reasoning_effort == ""
 
 
+@pytest.mark.parametrize(("raw", "stored"), [("minimal", "low"), ("MAX", "xhigh"), ("none", "none"), ("xhigh", "xhigh"), ("auto", "auto")])
+def test_xai_reasoning_effort_alias_and_extended_tiers(monkeypatch, tmp_path, raw, stored):
+    config_file = _reset_config(monkeypatch, tmp_path)
+
+    saved = service.config_set("XAI_REASONING_EFFORT", raw)
+
+    assert saved["ok"] is True
+    assert saved["value"] == stored
+    assert json.loads(config_file.read_text(encoding="utf-8"))["XAI_REASONING_EFFORT"] == stored
+    assert service.config.xai_reasoning_effort == stored
+
+
+def test_xai_reasoning_effort_alias_normalized_on_read(monkeypatch, tmp_path):
+    _reset_config(monkeypatch, tmp_path)
+    monkeypatch.setenv("XAI_REASONING_EFFORT", "Minimal")
+
+    assert service.config.xai_reasoning_effort == "low"
+
+
 @pytest.mark.parametrize("value", ["ultra", " ULTRA "])
 def test_invalid_xai_reasoning_effort_is_reported_not_raised(monkeypatch, tmp_path, value):
     _reset_config(monkeypatch, tmp_path)

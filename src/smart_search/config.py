@@ -35,7 +35,10 @@ class Config:
     _DEFAULT_INTENT_EMBEDDING_THRESHOLD = "0.74"
     _DEFAULT_INTENT_EMBEDDING_MARGIN = "0.05"
     _ALLOWED_XAI_TOOLS = {"web_search", "x_search"}
-    _ALLOWED_XAI_REASONING_EFFORTS = {"low", "medium", "high"}
+    # 档位与 sub2api grok_search 通道 normalizeGrokSearchEffort 对齐；none/xhigh/auto 面向中转场景，
+    # xAI 官方 API 仅接受 low/medium/high
+    _ALLOWED_XAI_REASONING_EFFORTS = {"none", "low", "medium", "high", "xhigh", "auto"}
+    _REASONING_EFFORT_ALIASES = {"minimal": "low", "max": "xhigh"}
     _ALLOWED_OPENAI_COMPATIBLE_API_MODES = {"chat-completions", "responses"}
     _ALLOWED_VALIDATION_LEVELS = {"fast", "balanced", "strict"}
     _ALLOWED_FALLBACK_MODES = {"auto", "off"}
@@ -483,7 +486,7 @@ class Config:
                 continue
             value = "" if raw_value is None else str(raw_value)
             if key == "XAI_REASONING_EFFORT":
-                value = value.strip().lower()
+                value = self._normalized_reasoning_effort(value)
             try:
                 self._validate_config_value(key, value)
             except ValueError as e:
@@ -583,9 +586,14 @@ class Config:
     def xai_tools_raw(self) -> str:
         return self._get_config_value("XAI_TOOLS", self._DEFAULT_XAI_TOOLS) or self._DEFAULT_XAI_TOOLS
 
+    @staticmethod
+    def _normalized_reasoning_effort(value: str) -> str:
+        effort = (value or "").strip().lower()
+        return Config._REASONING_EFFORT_ALIASES.get(effort, effort)
+
     @property
     def xai_reasoning_effort(self) -> str:
-        value = (self._get_config_value("XAI_REASONING_EFFORT", "") or "").strip().lower()
+        value = self._normalized_reasoning_effort(self._get_config_value("XAI_REASONING_EFFORT", "") or "")
         return self._validate_enum_value("XAI_REASONING_EFFORT", value, self._ALLOWED_XAI_REASONING_EFFORTS) if value else ""
 
     @property
@@ -735,6 +743,8 @@ class Config:
         # empty string is how a key is cleared rather than a value to check.
         if not str(value).strip():
             return
+        if key == "XAI_REASONING_EFFORT":
+            value = self._normalized_reasoning_effort(value)
         if key in self.PROVIDER_ENABLED_KEYS.values():
             self._validate_enum_value(key, value, {"true", "false", "1", "0", "yes", "no", "on", "off"})
             return
