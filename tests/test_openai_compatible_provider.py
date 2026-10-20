@@ -950,3 +950,29 @@ def test_reasoning_effort_config_keys_validation():
     config._validate_config_value("OPENAI_COMPATIBLE_REASONING_EFFORT", "MAX")
     with pytest.raises(ValueError):
         config._validate_config_value("OPENAI_COMPATIBLE_REASONING_EFFORT", "nope")
+
+
+def test_request_read_timeout_uses_openai_compatible_timeout_cap(monkeypatch):
+    """配置 OPENAI_COMPATIBLE_TIMEOUT_SECONDS 后作为独立 read 上限；deadline 模式取与剩余预算的较小值"""
+    provider = OpenAICompatibleSearchProvider("https://api.example.com", "test-key", "test-model")
+    monkeypatch.setenv("OPENAI_COMPATIBLE_TIMEOUT_SECONDS", "45")
+
+    assert provider._request_timeout().read == 45.0
+
+    provider.set_search_deadline(time.monotonic() + 10.0)
+    timeout = provider._request_timeout()
+
+    assert 9.0 < timeout.read <= 10.0
+    assert timeout.connect == 6.0
+
+
+def test_main_provider_timeout_cap_keys_reject_invalid_values():
+    from smart_search.config import config
+
+    for key in ("XAI_TIMEOUT_SECONDS", "OPENAI_COMPATIBLE_TIMEOUT_SECONDS"):
+        with pytest.raises(ValueError):
+            config._validate_config_value(key, "0")
+        with pytest.raises(ValueError):
+            config._validate_config_value(key, "abc")
+    config._validate_config_value("XAI_TIMEOUT_SECONDS", "90")
+    config._validate_config_value("OPENAI_COMPATIBLE_TIMEOUT_SECONDS", "")

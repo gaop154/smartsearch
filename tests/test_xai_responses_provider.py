@@ -349,3 +349,16 @@ async def test_xai_retry_stops_after_slow_failure(monkeypatch, delay, expected_r
         await provider.search("query")
 
     assert len(requests) == expected_requests
+
+
+def test_xai_request_timeout_uses_xai_timeout_cap(monkeypatch):
+    """配置 XAI_TIMEOUT_SECONDS 后作为独立 read 上限；deadline 模式取与剩余预算的较小值"""
+    import time
+
+    provider = XAIResponsesSearchProvider("https://api.x.ai/v1", "test-key", "test-model", [])
+    monkeypatch.setenv("XAI_TIMEOUT_SECONDS", "33")
+
+    assert provider._request_timeout().read == 33.0
+
+    provider.set_search_deadline(time.monotonic() + 10.0)
+    assert 9.0 < provider._request_timeout().read <= 10.0

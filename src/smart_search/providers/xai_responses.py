@@ -50,15 +50,18 @@ class XAIResponsesSearchProvider(BaseSearchProvider):
         self._search_deadline_monotonic = deadline_monotonic
 
     def _request_timeout(self) -> httpx.Timeout:
+        # XAI_TIMEOUT_SECONDS 配置后作为独立 read 上限（deadline 模式下取与剩余预算的较小值）；
+        # 未配置 read 跟随全局搜索预算，保持上游默认行为。
+        read_ceiling = config.xai_timeout if config.xai_timeout is not None else config.search_timeout_or_default
         if self._search_deadline_monotonic is None:
-            return httpx.Timeout(connect=6.0, read=config.search_timeout_or_default, write=10.0, pool=None)
+            return httpx.Timeout(connect=6.0, read=read_ceiling, write=10.0, pool=None)
         remaining = self._search_deadline_monotonic - time.monotonic()
         if remaining <= 0:
             raise asyncio.TimeoutError(source_message('main_search deadline exhausted'))
         bounded = max(0.001, remaining)
         return httpx.Timeout(
             connect=min(6.0, bounded),
-            read=bounded,
+            read=min(read_ceiling, bounded),
             write=min(10.0, bounded),
             pool=bounded,
         )

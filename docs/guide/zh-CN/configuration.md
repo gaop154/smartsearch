@@ -60,7 +60,7 @@
 - `XAI_REASONING_EFFORT` 接受 `none`、`low`、`medium`、`high`、`xhigh`、`auto`，`minimal`、`max` 为别名，大小写不敏感，保存为小写。可选；设置后在 xAI Responses 请求中发送 reasoning.effort，默认不发送。直连 xAI 官方 API 仅支持 `low`、`medium`、`high`，扩展档位面向兼容中转（如 sub2api）。Jev 调度的 Grok 搜索同样适用。provider attempts 记录实际 `stream` 和 `reasoning_effort`，`doctor` 显示 `XAI_REASONING_EFFORT`。上游因不支持 reasoning 返回 4xx 时原样报错，不删除字段重发。
 - `OPENAI_COMPATIBLE_REASONING_EFFORT` 接受与 `XAI_REASONING_EFFORT` 相同的档位与别名。可选；设置后 responses 模式发送 `reasoning.effort`，chat-completions 模式发送顶层 `reasoning_effort`，search、fetch 和综合请求都会携带，默认不发送。
 - `SMART_SEARCH_TIMEOUT_SECONDS` 是持久化的 `search` 总时限；环境变量覆盖本机配置文件，单次 `search --timeout SECONDS` 覆盖两者，默认 `300` 秒。
-- 主搜索 provider 直接用剩余的共享预算作为读取上限，不再额外套一层固定的 provider 读超时，因此慢推理模型不会在共享 deadline 之前被提前掐断。
+- 主搜索 provider 默认用剩余的共享预算作为读取上限；可选配 `XAI_TIMEOUT_SECONDS` / `OPENAI_COMPATIBLE_TIMEOUT_SECONDS` 为单次请求设置独立读取上限（取与剩余预算的较小值），留空则保持跟随预算的行为，慢推理模型不会被固定上限提前掐断。
 - `OPENAI_COMPATIBLE_FALLBACK_MODELS` 是失败后接力，不是时间片。主模型会使用剩余的共享 main-search 预算；只有硬失败（例如 `model_not_found`、鉴权失败、空结果、不可重试协议错误）才会换兜底模型。`doctor` 和 `diagnose openai-compatible` 会在兜底模型不在 `/models` 里时给出警告。
 - 旧的 `SMART_SEARCH_API_URL`、`SMART_SEARCH_API_KEY`、`SMART_SEARCH_API_MODE`、`SMART_SEARCH_MODEL`、`SMART_SEARCH_XAI_TOOLS` 不再是受支持配置项。请显式使用 `XAI_*` 或 `OPENAI_COMPATIBLE_*`。
 - 不要给 OpenAI-compatible 任一 API mode 强塞 xAI 的 `web_search` / `x_search` 工具或旧 `search_parameters`。

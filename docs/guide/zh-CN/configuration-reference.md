@@ -12,6 +12,7 @@
 | `XAI_API_URL` | 用官方地址就别动。走代理或中转时才改。 | `url` | `https://api.x.ai/v1` |
 | `XAI_MODEL` | 留空用默认模型。 | `text` | `grok-4-fast` |
 | `XAI_TOOLS` | 逗号分隔。可选 web_search 和 x_search。 | `web_search, x_search` | `web_search,x_search` |
+| `XAI_TIMEOUT_SECONDS` | 单次 xAI 请求的读取超时上限；留空则跟随总搜索预算（SMART_SEARCH_TIMEOUT_SECONDS）。 | `float` | 未设置 |
 | `XAI_REASONING_EFFORT` | 允许值 none / low / medium / high / xhigh / auto（minimal、max 为别名）；留空表示不发送 reasoning.effort。直连 xAI 官方 API 仅支持 low / medium / high。 | `text` | 未设置 |
 | `OPENAI_COMPATIBLE_API_URL` | 任何兼容 OpenAI 协议的服务都行。要和下面的 key 一起填才算配好。 | `url` | 未设置 |
 | `OPENAI_COMPATIBLE_API_KEY` | 下面的链接是 OpenAI 官方的。用中转或第三方服务的话，key 去对应服务商那里拿。 | `secret` | 未设置 |
@@ -19,6 +20,7 @@
 | `OPENAI_COMPATIBLE_FALLBACK_MODELS` | 逗号分隔。主模型不可用时按顺序往下试。 | `csv` | 未设置 |
 | `OPENAI_COMPATIBLE_API_MODE` | 大多数服务用 chat-completions。 | `chat-completions, responses` | `chat-completions` |
 | `OPENAI_COMPATIBLE_STREAM` | 部分服务只在流式下才肯长时间思考。 | `bool` | `false` |
+| `OPENAI_COMPATIBLE_TIMEOUT_SECONDS` | 单次请求的读取超时上限；留空则跟随总搜索预算（SMART_SEARCH_TIMEOUT_SECONDS）。 | `float` | 未设置 |
 | `OPENAI_COMPATIBLE_REASONING_EFFORT` | 允许值 none / low / medium / high / xhigh / auto（minimal、max 为别名）；留空表示不发送。responses 模式发 reasoning.effort，chat-completions 模式发顶层 reasoning_effort。 | `text` | 未设置 |
 | `XAI_ENABLED` | 禁用后保留配置，不再发起请求。保存更改后生效。 | `bool` | `true` |
 | `OPENAI_COMPATIBLE_ENABLED` | 禁用后保留配置，不再发起请求。保存更改后生效。 | `bool` | `true` |

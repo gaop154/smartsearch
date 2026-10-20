@@ -72,6 +72,7 @@ class Config:
         "XAI_API_KEY",
         "XAI_MODEL",
         "XAI_TOOLS",
+        "XAI_TIMEOUT_SECONDS",
         "XAI_REASONING_EFFORT",
         "OPENAI_COMPATIBLE_API_URL",
         "OPENAI_COMPATIBLE_API_KEY",
@@ -79,6 +80,7 @@ class Config:
         "OPENAI_COMPATIBLE_FALLBACK_MODELS",
         "OPENAI_COMPATIBLE_API_MODE",
         "OPENAI_COMPATIBLE_STREAM",
+        "OPENAI_COMPATIBLE_TIMEOUT_SECONDS",
         "OPENAI_COMPATIBLE_REASONING_EFFORT",
         "SMART_SEARCH_VALIDATION_LEVEL",
         "SMART_SEARCH_FALLBACK_MODE",
@@ -588,6 +590,12 @@ class Config:
     def xai_tools_raw(self) -> str:
         return self._get_config_value("XAI_TOOLS", self._DEFAULT_XAI_TOOLS) or self._DEFAULT_XAI_TOOLS
 
+    @property
+    def xai_timeout(self) -> float | None:
+        """单次 xAI 请求的 read 上限；未配置返回 None，read 跟随全局搜索预算（上游默认行为）"""
+        raw = (self._get_config_value("XAI_TIMEOUT_SECONDS", "") or "").strip()
+        return self._parse_positive_float_value("XAI_TIMEOUT_SECONDS", raw) if raw else None
+
     @staticmethod
     def _normalized_reasoning_effort(value: str) -> str:
         effort = (value or "").strip().lower()
@@ -645,6 +653,12 @@ class Config:
     @property
     def openai_compatible_stream(self) -> bool:
         return (self._get_config_value("OPENAI_COMPATIBLE_STREAM", "false") or "false").lower() in ("true", "1", "yes")
+
+    @property
+    def openai_compatible_timeout(self) -> float | None:
+        """单次 OpenAI-compatible 请求的 read 上限；未配置返回 None，read 跟随全局搜索预算（上游默认行为）"""
+        raw = (self._get_config_value("OPENAI_COMPATIBLE_TIMEOUT_SECONDS", "") or "").strip()
+        return self._parse_positive_float_value("OPENAI_COMPATIBLE_TIMEOUT_SECONDS", raw) if raw else None
 
     def parse_xai_tools(self, raw: str | None = None) -> list[str]:
         raw = raw or self.xai_tools_raw
@@ -749,6 +763,10 @@ class Config:
         # Every getter below falls back to its default on an empty value, so an
         # empty string is how a key is cleared rather than a value to check.
         if not str(value).strip():
+            return
+        # 这两个键留空表示“跟随全局搜索预算”，清空是合法操作，所以放在空值跳过之后校验。
+        if key in {"XAI_TIMEOUT_SECONDS", "OPENAI_COMPATIBLE_TIMEOUT_SECONDS"}:
+            self._parse_positive_float_value(key, value)
             return
         if key == "XAI_REASONING_EFFORT" or key == "OPENAI_COMPATIBLE_REASONING_EFFORT":
             value = self._normalized_reasoning_effort(value)
@@ -1261,6 +1279,7 @@ class Config:
             "XAI_API_KEY": self._mask_api_key(self.xai_api_key) if self.xai_api_key else tr('未配置'),
             "XAI_MODEL": self.xai_model,
             "XAI_TOOLS": self.xai_tools_raw,
+            "XAI_TIMEOUT_SECONDS": self.xai_timeout if self.xai_timeout is not None else "",
             "XAI_REASONING_EFFORT": xai_reasoning_effort,
             "OPENAI_COMPATIBLE_API_URL": self.openai_compatible_api_url or tr('未配置'),
             "OPENAI_COMPATIBLE_API_KEY": self._mask_api_key(self.openai_compatible_api_key) if self.openai_compatible_api_key else tr('未配置'),
@@ -1268,6 +1287,7 @@ class Config:
             "OPENAI_COMPATIBLE_FALLBACK_MODELS": ",".join(self.openai_compatible_fallback_models),
             "OPENAI_COMPATIBLE_API_MODE": openai_compatible_api_mode,
             "OPENAI_COMPATIBLE_STREAM": self.openai_compatible_stream,
+            "OPENAI_COMPATIBLE_TIMEOUT_SECONDS": self.openai_compatible_timeout if self.openai_compatible_timeout is not None else "",
             "OPENAI_COMPATIBLE_REASONING_EFFORT": openai_reasoning_effort,
             "SMART_SEARCH_VALIDATION_LEVEL": validation_level,
             "SMART_SEARCH_FALLBACK_MODE": fallback_mode,
