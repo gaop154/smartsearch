@@ -2734,8 +2734,8 @@ async def context7_docs(library_id: str, query: str) -> dict[str, Any]:
     return data
 
 
-async def _test_primary_chat_completion(api_url: str, api_key: str, model: str) -> dict[str, Any]:
-    return await _test_openai_compatible_primary(api_url, api_key, model, api_mode="chat-completions")
+async def _test_primary_chat_completion(api_url: str, api_key: str, model: str, reasoning_effort: str = "") -> dict[str, Any]:
+    return await _test_openai_compatible_primary(api_url, api_key, model, api_mode="chat-completions", reasoning_effort=reasoning_effort)
 
 
 async def _test_openai_compatible_primary(
@@ -2744,8 +2744,9 @@ async def _test_openai_compatible_primary(
     model: str,
     *,
     api_mode: str,
+    reasoning_effort: str = "",
 ) -> dict[str, Any]:
-    provider = OpenAICompatibleSearchProvider(api_url, api_key, model, stream=False, api_mode=api_mode)
+    provider = OpenAICompatibleSearchProvider(api_url, api_key, model, stream=False, api_mode=api_mode, reasoning_effort=reasoning_effort)
     start = time.time()
     async with httpx.AsyncClient(timeout=20.0) as client:
         response = await client.post(
@@ -3048,9 +3049,11 @@ async def diagnose_openai_compatible(timeout_seconds: float = 30.0) -> dict[str,
 
     try:
         quick = (
-            await _test_primary_chat_completion(api_url, api_key, model)
+            await _test_primary_chat_completion(api_url, api_key, model,
+                                                reasoning_effort=config.openai_compatible_reasoning_effort)
             if api_mode == "chat-completions"
-            else await _test_openai_compatible_primary(api_url, api_key, model, api_mode=api_mode)
+            else await _test_openai_compatible_primary(api_url, api_key, model, api_mode=api_mode,
+                                                       reasoning_effort=config.openai_compatible_reasoning_effort)
         )
     except httpx.TimeoutException as e:
         quick = {"status": "timeout", "message": source_message('轻量 {0} 请求超时: {1}', api_mode, sanitize_provider_error_message(e))}
@@ -3131,8 +3134,9 @@ async def _test_primary_connection(
     model: str,
     *,
     api_mode: str = "chat-completions",
+    reasoning_effort: str = "",
 ) -> dict[str, Any]:
-    completion_test = await _test_openai_compatible_primary(api_url, api_key, model, api_mode=api_mode)
+    completion_test = await _test_openai_compatible_primary(api_url, api_key, model, api_mode=api_mode, reasoning_effort=reasoning_effort)
     completion_label = "聊天接口" if api_mode == "chat-completions" else "Responses 接口"
     completion_key = "chat_completion_test" if api_mode == "chat-completions" else "responses_test"
 
@@ -3207,18 +3211,23 @@ async def _test_primary_connection(
     return result
 
 
-async def _test_primary_responses(api_url: str, api_key: str, model: str) -> dict[str, Any]:
+async def _test_primary_responses(api_url: str, api_key: str, model: str, reasoning_effort: str = "") -> dict[str, Any]:
     responses_url = f"{api_url.rstrip('/')}/responses"
+    # 探测 payload 与真实 search 请求保持同一 effort 契约，
+    # 避免中转侧（如 sub2api grok_search 兑底 medium）与真实请求行为不一致。
+    probe_payload: dict[str, Any] = {
+        "model": model,
+        "input": [{"role": "user", "content": "Reply with exactly: ok"}],
+        "stream": False,
+    }
+    if reasoning_effort:
+        probe_payload["reasoning"] = {"effort": reasoning_effort}
     start = time.time()
     async with httpx.AsyncClient(timeout=20.0) as client:
         response = await client.post(
             responses_url,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": model,
-                "input": [{"role": "user", "content": "Reply with exactly: ok"}],
-                "stream": False,
-            },
+            json=probe_payload,
         )
         response_time = _elapsed_ms(start)
         if response.status_code != 200:
@@ -3232,15 +3241,18 @@ async def _test_primary_responses(api_url: str, api_key: str, model: str) -> dic
 
 async def _test_main_provider_connection(provider_config: dict[str, Any]) -> dict[str, Any]:
     if provider_config["mode"] == "xai-responses":
-        return await _test_primary_responses(provider_config["api_url"], provider_config["api_key"], provider_config["model"])
+        return await _test_primary_responses(provider_config["api_url"], provider_config["api_key"], provider_config["model"],
+                                             reasoning_effort=provider_config.get("reasoning_effort", ""))
     api_mode = provider_config.get("api_mode", provider_config.get("mode", "chat-completions"))
     if api_mode == "chat-completions":
-        return await _test_primary_connection(provider_config["api_url"], provider_config["api_key"], provider_config["model"])
+        return await _test_primary_connection(provider_config["api_url"], provider_config["api_key"], provider_config["model"],
+                                              reasoning_effort=provider_config.get("reasoning_effort", ""))
     return await _test_primary_connection(
         provider_config["api_url"],
         provider_config["api_key"],
         provider_config["model"],
         api_mode=api_mode,
+        reasoning_effort=provider_config.get("reasoning_effort", ""),
     )
 
 

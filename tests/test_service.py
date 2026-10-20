@@ -1320,7 +1320,7 @@ async def test_diagnose_reports_unknown_fallback_models_without_failing_ok(monke
     monkeypatch.setenv("OPENAI_COMPATIBLE_MODEL", "grok-4.6")
     monkeypatch.setenv("OPENAI_COMPATIBLE_FALLBACK_MODELS", "missing-model")
 
-    async def fake_quick(api_url, api_key, model):
+    async def fake_quick(api_url, api_key, model, reasoning_effort=""):
         return {"status": "ok", "message": "chat ok", "response_time_ms": 10, "http_status": 200, "content_type": "application/json", "has_content": True}
 
     async def fake_probe(api_url, api_key, model, *, stream, timeout_seconds):
@@ -2297,7 +2297,7 @@ async def test_diagnose_openai_compatible_timeout_after_quick_chat(monkeypatch):
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_URL", "https://relay.example.com/v1")
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_KEY", "relay-test-secret")
 
-    async def fake_quick(api_url, api_key, model):
+    async def fake_quick(api_url, api_key, model, reasoning_effort=""):
         return {"status": "ok", "message": "chat ok", "response_time_ms": 12.0}
 
     async def fake_probe(api_url, api_key, model, *, stream, timeout_seconds):
@@ -2335,7 +2335,7 @@ async def test_diagnose_openai_compatible_recommends_stream_when_only_stream_wor
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_URL", "https://relay.example.com/v1")
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_KEY", "relay-test-secret")
 
-    async def fake_quick(api_url, api_key, model):
+    async def fake_quick(api_url, api_key, model, reasoning_effort=""):
         return {"status": "ok", "message": "chat ok", "response_time_ms": 12.0}
 
     async def fake_probe(api_url, api_key, model, *, stream, timeout_seconds):
@@ -2369,7 +2369,7 @@ async def test_diagnose_openai_compatible_recommends_no_stream_when_stream_fails
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_URL", "https://relay.example.com/v1")
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_KEY", "relay-test-secret")
 
-    async def fake_quick(api_url, api_key, model):
+    async def fake_quick(api_url, api_key, model, reasoning_effort=""):
         return {"status": "ok", "message": "chat ok", "response_time_ms": 12.0}
 
     async def fake_probe(api_url, api_key, model, *, stream, timeout_seconds):
@@ -2403,7 +2403,7 @@ async def test_diagnose_openai_compatible_reports_ok_when_both_search_shapes_wor
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_URL", "https://relay.example.com/v1")
     monkeypatch.setenv("OPENAI_COMPATIBLE_API_KEY", "relay-test-secret")
 
-    async def fake_quick(api_url, api_key, model):
+    async def fake_quick(api_url, api_key, model, reasoning_effort=""):
         return {"status": "ok", "message": "chat ok", "response_time_ms": 12.0}
 
     async def fake_probe(api_url, api_key, model, *, stream, timeout_seconds):
@@ -2749,10 +2749,10 @@ async def test_doctor_tests_main_providers_independently(monkeypatch):
     monkeypatch.setenv("EXA_API_KEY", "exa-test-secret")
     monkeypatch.setenv("TAVILY_API_KEY", "tavily-test-secret")
 
-    async def fake_xai(api_url, api_key, model):
+    async def fake_xai(api_url, api_key, model, reasoning_effort=""):
         raise httpx.TimeoutException("xai timeout")
 
-    async def fake_openai(api_url, api_key, model):
+    async def fake_openai(api_url, api_key, model, *, api_mode="chat-completions", reasoning_effort=""):
         return {"status": "ok", "message": "relay ok"}
 
     monkeypatch.setattr(service, "_test_primary_responses", fake_xai)
@@ -2913,7 +2913,7 @@ async def test_tavily_disabled_removes_capability_routes_and_blocks_network_boun
     async def fake_primary_search(self, query, platform="", ctx=None):
         return "Answer. https://example.com/source"
 
-    async def fake_primary_connection(api_url, api_key, model):
+    async def fake_primary_connection(api_url, api_key, model, *, api_mode="chat-completions", reasoning_effort=""):
         return {"status": "ok", "message": "relay available"}
 
     monkeypatch.setattr(service.httpx, "AsyncClient", NeverAsyncClient)
@@ -3449,3 +3449,63 @@ def test_main_search_provider_configs_carry_reasoning_effort(monkeypatch, tmp_pa
     openai_provider = providers["OpenAICompatibleSearchProvider"]
     assert xai_provider.reasoning_effort == "xhigh"
     assert openai_provider.reasoning_effort == "low"
+
+
+@pytest.mark.asyncio
+async def test_primary_responses_probe_includes_reasoning_effort(monkeypatch):
+    captured = {}
+
+    class FakeAsyncClient:
+        def __init__(self, timeout):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, url, headers, json):
+            captured["url"] = url
+            captured["payload"] = json
+            return httpx.Response(200, json={"output": []}, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(service.httpx, "AsyncClient", FakeAsyncClient)
+
+    result = await service._test_primary_responses("https://api.example.com", "test-key", "test-model",
+                                                   reasoning_effort="high")
+
+    assert result["status"] == "ok"
+    assert captured["url"] == "https://api.example.com/responses"
+    assert captured["payload"]["reasoning"] == {"effort": "high"}
+
+    await service._test_primary_responses("https://api.example.com", "test-key", "test-model")
+    assert "reasoning" not in captured["payload"]
+
+
+@pytest.mark.asyncio
+async def test_main_provider_probe_passes_configured_effort(monkeypatch):
+    """doctor/测键链路把 provider_config 里的 effort 传进探测请求，与真实 search 请求同一契约"""
+    seen = {}
+
+    async def fake_responses(api_url, api_key, model, reasoning_effort=""):
+        seen["xai"] = reasoning_effort
+        return {"status": "ok"}
+
+    async def fake_connection(api_url, api_key, model, *, api_mode="chat-completions", reasoning_effort=""):
+        seen["openai"] = reasoning_effort
+        return {"status": "ok"}
+
+    monkeypatch.setattr(service, "_test_primary_responses", fake_responses)
+    monkeypatch.setattr(service, "_test_primary_connection", fake_connection)
+
+    await service._test_main_provider_connection({
+        "provider": "xai-responses", "mode": "xai-responses",
+        "api_url": "https://api.example.com", "api_key": "k", "model": "m", "reasoning_effort": "xhigh",
+    })
+    await service._test_main_provider_connection({
+        "provider": "openai-compatible", "mode": "openai-compatible",
+        "api_url": "https://relay.example.com/v1", "api_key": "k", "model": "m", "reasoning_effort": "low",
+    })
+
+    assert seen == {"xai": "xhigh", "openai": "low"}
