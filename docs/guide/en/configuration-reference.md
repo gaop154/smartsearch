@@ -19,6 +19,7 @@ Generated from current configuration metadata. Active keys appear below. Retired
 | `OPENAI_COMPATIBLE_FALLBACK_MODELS` | Comma separated. Tried in order when the main model is unavailable. | `csv` | Not set |
 | `OPENAI_COMPATIBLE_API_MODE` | Most services want chat-completions. | `chat-completions, responses` | `chat-completions` |
 | `OPENAI_COMPATIBLE_STREAM` | Some services only think for long under streaming. | `bool` | `false` |
+| `OPENAI_COMPATIBLE_REASONING_EFFORT` | Allowed values: none / low / medium / high / xhigh / auto (aliases: minimal, max); leave empty to omit. Sent as reasoning.effort in responses mode, top-level reasoning_effort in chat-completions mode. | `text` | Not set |
 | `XAI_ENABLED` | Disabling keeps the configuration and stops requests. Takes effect after saving changes. | `bool` | `true` |
 | `OPENAI_COMPATIBLE_ENABLED` | Disabling keeps the configuration and stops requests. Takes effect after saving changes. | `bool` | `true` |
 

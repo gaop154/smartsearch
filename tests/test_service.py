@@ -3429,3 +3429,23 @@ async def test_main_search_shares_its_deadline_with_the_xai_provider(monkeypatch
     assert seen["deadline"] is not None
     # The provider gets the whole remaining budget rather than a fixed 120s read.
     assert seen["read_timeout"] > 240.0
+
+
+def test_main_search_provider_configs_carry_reasoning_effort(monkeypatch, tmp_path):
+    """两个主搜索 provider 的配置 dict 携带各自的 effort，构造函数正确接收"""
+    _reset_config(monkeypatch, tmp_path)
+    monkeypatch.setenv("XAI_API_KEY", "xai-test-secret")
+    monkeypatch.setenv("XAI_REASONING_EFFORT", "MAX")
+    monkeypatch.setenv("OPENAI_COMPATIBLE_API_URL", "https://relay.example.com/v1")
+    monkeypatch.setenv("OPENAI_COMPATIBLE_API_KEY", "sk-test-secret")
+    monkeypatch.setenv("OPENAI_COMPATIBLE_REASONING_EFFORT", "minimal")
+
+    configs = {item["provider"]: item for item in service._main_search_provider_configs()}
+    assert configs["xai-responses"]["reasoning_effort"] == "xhigh"
+    assert configs["openai-compatible"]["reasoning_effort"] == "low"
+
+    providers = {type(p).__name__: p for p in service._main_search_providers(list(configs.values()), "auto")}
+    xai_provider = providers["XAIResponsesSearchProvider"]
+    openai_provider = providers["OpenAICompatibleSearchProvider"]
+    assert xai_provider.reasoning_effort == "xhigh"
+    assert openai_provider.reasoning_effort == "low"

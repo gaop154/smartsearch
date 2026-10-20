@@ -1643,6 +1643,7 @@ def _main_search_provider_configs(model_override: str = "", providers: str = "au
             "fallback_models": [] if model_override else config.openai_compatible_fallback_models,
             "stream": config.openai_compatible_stream,
             "tools": [],
+            "reasoning_effort": config.openai_compatible_reasoning_effort,
             "source": "OPENAI_COMPATIBLE_*",
         }
 
@@ -1676,6 +1677,7 @@ def _main_search_providers(provider_configs: list[dict[str, Any]], fallback: str
                     provider_config["model"],
                     provider_config.get("stream", False),
                     provider_config.get("api_mode", provider_config.get("mode", "chat-completions")),
+                    reasoning_effort=provider_config.get("reasoning_effort", ""),
                 )
             )
     return providers
@@ -3656,6 +3658,7 @@ def _main_search_override_config(provider: str, overrides: dict[str, str]) -> di
             "api_url": get("XAI_API_URL", config.xai_api_url),
             "api_key": api_key,
             "model": get("XAI_MODEL", config.xai_model),
+            "reasoning_effort": get("XAI_REASONING_EFFORT", config.xai_reasoning_effort),
         }
     api_url = get("OPENAI_COMPATIBLE_API_URL", config.openai_compatible_api_url)
     api_key = get("OPENAI_COMPATIBLE_API_KEY", config.openai_compatible_api_key)
@@ -3668,6 +3671,7 @@ def _main_search_override_config(provider: str, overrides: dict[str, str]) -> di
         "api_key": api_key,
         "model": get("OPENAI_COMPATIBLE_MODEL", config.openai_compatible_model),
         "api_mode": get("OPENAI_COMPATIBLE_API_MODE", config.openai_compatible_api_mode),
+        "reasoning_effort": get("OPENAI_COMPATIBLE_REASONING_EFFORT", config.openai_compatible_reasoning_effort),
     }
 
 

@@ -919,3 +919,34 @@ async def test_chat_stream_done_returns_without_eof(monkeypatch):
 
     assert result == "Hello world"
     assert [attempt["transport"] for attempt in provider.last_transport_attempts] == ["stream"]
+
+
+def test_openai_compatible_reasoning_effort_injection():
+    """reasoning_effort 由构造参数注入：responses 模式发 reasoning.effort，chat-completions 发顶层 reasoning_effort；未传不注入"""
+    chat = OpenAICompatibleSearchProvider("https://api.example.com", "test-key", "test-model")
+    responses = OpenAICompatibleSearchProvider("https://api.example.com", "test-key", "test-model", api_mode="responses")
+
+    assert "reasoning_effort" not in chat._build_request_payload("sys", "user", stream=False)
+    assert "reasoning" not in chat._build_request_payload("sys", "user", stream=False)
+    assert "reasoning" not in responses._build_request_payload("sys", "user", stream=False)
+
+    chat = OpenAICompatibleSearchProvider("https://api.example.com", "test-key", "test-model", reasoning_effort="xhigh")
+    responses = OpenAICompatibleSearchProvider(
+        "https://api.example.com", "test-key", "test-model", api_mode="responses", reasoning_effort="xhigh"
+    )
+    assert chat._build_request_payload("sys", "user", stream=False)["reasoning_effort"] == "xhigh"
+    assert responses._build_request_payload("sys", "user", stream=False)["reasoning"] == {"effort": "xhigh"}
+
+
+def test_reasoning_effort_config_keys_validation():
+    """两个 effort 配置键共用档位集合与别名归一，非法值报错"""
+    from smart_search.config import config
+
+    config._validate_config_value("XAI_REASONING_EFFORT", "")
+    config._validate_config_value("XAI_REASONING_EFFORT", "xhigh")
+    config._validate_config_value("XAI_REASONING_EFFORT", "Minimal")
+    with pytest.raises(ValueError):
+        config._validate_config_value("XAI_REASONING_EFFORT", "extreme")
+    config._validate_config_value("OPENAI_COMPATIBLE_REASONING_EFFORT", "MAX")
+    with pytest.raises(ValueError):
+        config._validate_config_value("OPENAI_COMPATIBLE_REASONING_EFFORT", "nope")

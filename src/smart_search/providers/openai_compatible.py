@@ -173,10 +173,12 @@ class OpenAICompatibleSearchProvider(BaseSearchProvider):
         model: str = "grok-4-fast",
         stream: bool = False,
         api_mode: str = "chat-completions",
+        reasoning_effort: str = "",
     ):
         super().__init__(normalize_openai_compatible_api_url(api_url), api_key)
         self.model = model
         self.stream = stream
+        self.reasoning_effort = reasoning_effort
         self.api_mode = (api_mode or "chat-completions").strip().lower()
         if self.api_mode not in OPENAI_COMPATIBLE_API_MODES:
             allowed = ", ".join(sorted(OPENAI_COMPATIBLE_API_MODES))
@@ -261,6 +263,13 @@ class OpenAICompatibleSearchProvider(BaseSearchProvider):
                 {"role": "system", "content": instructions},
                 {"role": "user", "content": user_content},
             ]
+        # 思考等级由 OPENAI_COMPATIBLE_REASONING_EFFORT 配置；未配置不注入，交由中转/上游默认策略。
+        # responses 模式用 reasoning.effort(sub2api grok_search 通道契约)，chat-completions 用顶层 reasoning_effort。
+        if self.reasoning_effort:
+            if self.api_mode == "responses":
+                payload["reasoning"] = {"effort": self.reasoning_effort}
+            else:
+                payload["reasoning_effort"] = self.reasoning_effort
         return payload
 
     async def search(self, query: str, platform: str = "", ctx=None) -> List[SearchResult]:

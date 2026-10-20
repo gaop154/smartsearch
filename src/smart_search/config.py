@@ -79,6 +79,7 @@ class Config:
         "OPENAI_COMPATIBLE_FALLBACK_MODELS",
         "OPENAI_COMPATIBLE_API_MODE",
         "OPENAI_COMPATIBLE_STREAM",
+        "OPENAI_COMPATIBLE_REASONING_EFFORT",
         "SMART_SEARCH_VALIDATION_LEVEL",
         "SMART_SEARCH_FALLBACK_MODE",
         "SMART_SEARCH_MINIMUM_PROFILE",
@@ -163,6 +164,7 @@ class Config:
         "OPENAI_COMPATIBLE_FALLBACK_MODELS",
         "OPENAI_COMPATIBLE_API_MODE",
         "OPENAI_COMPATIBLE_STREAM",
+        "OPENAI_COMPATIBLE_REASONING_EFFORT",
         "SMART_SEARCH_VALIDATION_LEVEL",
         "SMART_SEARCH_FALLBACK_MODE",
         "SMART_SEARCH_MINIMUM_PROFILE",
@@ -485,7 +487,7 @@ class Config:
                 errors.append({"key": key, "error": tr('Unsupported config key: {0}', key)})
                 continue
             value = "" if raw_value is None else str(raw_value)
-            if key == "XAI_REASONING_EFFORT":
+            if key in {"XAI_REASONING_EFFORT", "OPENAI_COMPATIBLE_REASONING_EFFORT"}:
                 value = self._normalized_reasoning_effort(value)
             try:
                 self._validate_config_value(key, value)
@@ -595,6 +597,11 @@ class Config:
     def xai_reasoning_effort(self) -> str:
         value = self._normalized_reasoning_effort(self._get_config_value("XAI_REASONING_EFFORT", "") or "")
         return self._validate_enum_value("XAI_REASONING_EFFORT", value, self._ALLOWED_XAI_REASONING_EFFORTS) if value else ""
+
+    @property
+    def openai_compatible_reasoning_effort(self) -> str:
+        value = self._normalized_reasoning_effort(self._get_config_value("OPENAI_COMPATIBLE_REASONING_EFFORT", "") or "")
+        return self._validate_enum_value("OPENAI_COMPATIBLE_REASONING_EFFORT", value, self._ALLOWED_XAI_REASONING_EFFORTS) if value else ""
 
     @property
     def openai_compatible_api_url(self) -> str | None:
@@ -743,13 +750,14 @@ class Config:
         # empty string is how a key is cleared rather than a value to check.
         if not str(value).strip():
             return
-        if key == "XAI_REASONING_EFFORT":
+        if key == "XAI_REASONING_EFFORT" or key == "OPENAI_COMPATIBLE_REASONING_EFFORT":
             value = self._normalized_reasoning_effort(value)
         if key in self.PROVIDER_ENABLED_KEYS.values():
             self._validate_enum_value(key, value, {"true", "false", "1", "0", "yes", "no", "on", "off"})
             return
         enum_allowed = {
             "XAI_REASONING_EFFORT": self._ALLOWED_XAI_REASONING_EFFORTS,
+            "OPENAI_COMPATIBLE_REASONING_EFFORT": self._ALLOWED_XAI_REASONING_EFFORTS,
             "SMART_SEARCH_VALIDATION_LEVEL": self._ALLOWED_VALIDATION_LEVELS,
             "SMART_SEARCH_FALLBACK_MODE": self._ALLOWED_FALLBACK_MODES,
             "SMART_SEARCH_MINIMUM_PROFILE": self._ALLOWED_MINIMUM_PROFILES,
@@ -1170,6 +1178,11 @@ class Config:
             xai_reasoning_effort = self.xai_reasoning_effort
         except ValueError as exc:
             config_parameter_errors.append(str(exc))
+        openai_reasoning_effort = self._get_config_value("OPENAI_COMPATIBLE_REASONING_EFFORT", "")
+        try:
+            openai_reasoning_effort = self.openai_compatible_reasoning_effort
+        except ValueError as exc:
+            config_parameter_errors.append(str(exc))
         xai_configured = self.provider_enabled("xai-responses") and bool(self.xai_api_key)
         openai_configured = self.provider_enabled("openai-compatible") and bool(self.openai_compatible_api_url and self.openai_compatible_api_key)
         explicit_main_configured = xai_configured or openai_configured
@@ -1255,6 +1268,7 @@ class Config:
             "OPENAI_COMPATIBLE_FALLBACK_MODELS": ",".join(self.openai_compatible_fallback_models),
             "OPENAI_COMPATIBLE_API_MODE": openai_compatible_api_mode,
             "OPENAI_COMPATIBLE_STREAM": self.openai_compatible_stream,
+            "OPENAI_COMPATIBLE_REASONING_EFFORT": openai_reasoning_effort,
             "SMART_SEARCH_VALIDATION_LEVEL": validation_level,
             "SMART_SEARCH_FALLBACK_MODE": fallback_mode,
             "SMART_SEARCH_MINIMUM_PROFILE": minimum_profile,

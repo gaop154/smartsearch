@@ -19,6 +19,7 @@
 | `OPENAI_COMPATIBLE_FALLBACK_MODELS` | 逗号分隔。主模型不可用时按顺序往下试。 | `csv` | 未设置 |
 | `OPENAI_COMPATIBLE_API_MODE` | 大多数服务用 chat-completions。 | `chat-completions, responses` | `chat-completions` |
 | `OPENAI_COMPATIBLE_STREAM` | 部分服务只在流式下才肯长时间思考。 | `bool` | `false` |
+| `OPENAI_COMPATIBLE_REASONING_EFFORT` | 允许值 none / low / medium / high / xhigh / auto（minimal、max 为别名）；留空表示不发送。responses 模式发 reasoning.effort，chat-completions 模式发顶层 reasoning_effort。 | `text` | 未设置 |
 | `XAI_ENABLED` | 禁用后保留配置，不再发起请求。保存更改后生效。 | `bool` | `true` |
 | `OPENAI_COMPATIBLE_ENABLED` | 禁用后保留配置，不再发起请求。保存更改后生效。 | `bool` | `true` |
 

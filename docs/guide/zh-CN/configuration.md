@@ -20,7 +20,7 @@
 | Provider / 路线 | 用途 | 主要配置项 | 官方文档 | Key / 控制台 |
 | --- | --- | --- | --- | --- |
 | xAI Responses API | 主搜索，走 `web_search,x_search` 工具 | `XAI_API_KEY`、`XAI_API_URL`、`XAI_MODEL`、`XAI_TOOLS`、`XAI_REASONING_EFFORT` | [docs.x.ai](https://docs.x.ai/docs) | [xAI API keys](https://console.x.ai/team/default/api-keys) |
-| OpenAI-compatible Chat Completions / Responses | 主搜索，适合 OpenAI 官方或兼容中转；任一模式都不会发送 xAI search tools | `OPENAI_COMPATIBLE_API_URL`、`OPENAI_COMPATIBLE_API_KEY`、`OPENAI_COMPATIBLE_MODEL`、`OPENAI_COMPATIBLE_API_MODE`、`OPENAI_COMPATIBLE_FALLBACK_MODELS`、`OPENAI_COMPATIBLE_STREAM` | [OpenAI platform docs](https://platform.openai.com/docs) | [OpenAI API keys](https://platform.openai.com/api-keys) 或你的兼容服务商 |
+| OpenAI-compatible Chat Completions / Responses | 主搜索，适合 OpenAI 官方或兼容中转；任一模式都不会发送 xAI search tools | `OPENAI_COMPATIBLE_API_URL`、`OPENAI_COMPATIBLE_API_KEY`、`OPENAI_COMPATIBLE_MODEL`、`OPENAI_COMPATIBLE_API_MODE`、`OPENAI_COMPATIBLE_FALLBACK_MODELS`、`OPENAI_COMPATIBLE_STREAM`、`OPENAI_COMPATIBLE_REASONING_EFFORT` | [OpenAI platform docs](https://platform.openai.com/docs) | [OpenAI API keys](https://platform.openai.com/api-keys) 或你的兼容服务商 |
 | Exa | 官方文档、API、论文、产品页、可信网页的低噪声发现 | `EXA_API_KEY` | [Exa docs](https://docs.exa.ai/) | [Exa API keys](https://dashboard.exa.ai/api-keys) |
 | Context7 | SDK、库、框架、API 文档兜底 | `CONTEXT7_API_KEY`、`CONTEXT7_BASE_URL` | [Context7 docs](https://context7.com/docs) | [Context7](https://context7.com/) |
 | 智谱 Web Search API | 中文、国内、时效、域名过滤类来源发现 | `ZHIPU_API_KEY`、`ZHIPU_API_URL`、`ZHIPU_SEARCH_ENGINE` | [智谱联网搜索文档](https://docs.bigmodel.cn/cn/guide/tools/web-search) | [智谱 API keys](https://open.bigmodel.cn/usercenter/apikeys) |
@@ -58,6 +58,7 @@
 - `chat-completions` 不发送搜索工具；如果中转站上的模型只能通过 Responses 的 `web_search` 工具联网（例如 grok），把 `XAI_API_URL`、`XAI_API_KEY`、`XAI_MODEL` 指向该中转站，并用 `smart-search diagnose openai-compatible` 的“联网搜索能力”检查确认。
 - `smart-search search --stream` 会给 xAI Responses 和 OpenAI-compatible 搜索设置 `stream=true`，包括 Jev 调度的 Grok 搜索；`--no-stream` 关闭本次流式请求。`OPENAI_COMPATIBLE_STREAM=true` 仍只设置 OpenAI-compatible 搜索和 provider 侧 fetch 的默认流式行为。
 - `XAI_REASONING_EFFORT` 接受 `none`、`low`、`medium`、`high`、`xhigh`、`auto`，`minimal`、`max` 为别名，大小写不敏感，保存为小写。可选；设置后在 xAI Responses 请求中发送 reasoning.effort，默认不发送。直连 xAI 官方 API 仅支持 `low`、`medium`、`high`，扩展档位面向兼容中转（如 sub2api）。Jev 调度的 Grok 搜索同样适用。provider attempts 记录实际 `stream` 和 `reasoning_effort`，`doctor` 显示 `XAI_REASONING_EFFORT`。上游因不支持 reasoning 返回 4xx 时原样报错，不删除字段重发。
+- `OPENAI_COMPATIBLE_REASONING_EFFORT` 接受与 `XAI_REASONING_EFFORT` 相同的档位与别名。可选；设置后 responses 模式发送 `reasoning.effort`，chat-completions 模式发送顶层 `reasoning_effort`，search、fetch 和综合请求都会携带，默认不发送。
 - `SMART_SEARCH_TIMEOUT_SECONDS` 是持久化的 `search` 总时限；环境变量覆盖本机配置文件，单次 `search --timeout SECONDS` 覆盖两者，默认 `300` 秒。
 - 主搜索 provider 直接用剩余的共享预算作为读取上限，不再额外套一层固定的 provider 读超时，因此慢推理模型不会在共享 deadline 之前被提前掐断。
 - `OPENAI_COMPATIBLE_FALLBACK_MODELS` 是失败后接力，不是时间片。主模型会使用剩余的共享 main-search 预算；只有硬失败（例如 `model_not_found`、鉴权失败、空结果、不可重试协议错误）才会换兜底模型。`doctor` 和 `diagnose openai-compatible` 会在兜底模型不在 `/models` 里时给出警告。

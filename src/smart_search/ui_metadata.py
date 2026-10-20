@@ -202,6 +202,11 @@ CONFIG_FIELDS: tuple[ConfigField, ...] = (
        label_zh="流式返回", label_en="Stream responses",
        help_zh="部分服务只在流式下才肯长时间思考。", help_en="Some services only think for long under streaming.",
        default="false", provider="openai-compatible", capabilities=("main_search",)),
+    _f(key="OPENAI_COMPATIBLE_REASONING_EFFORT", section="getting_started", tier="advanced", kind="text",
+       label_zh="OpenAI-compatible 推理强度", label_en="OpenAI-compatible reasoning effort",
+       help_zh="允许值 none / low / medium / high / xhigh / auto（minimal、max 为别名）；留空表示不发送。responses 模式发 reasoning.effort，chat-completions 模式发顶层 reasoning_effort。",
+       help_en="Allowed values: none / low / medium / high / xhigh / auto (aliases: minimal, max); leave empty to omit. Sent as reasoning.effort in responses mode, top-level reasoning_effort in chat-completions mode.",
+       provider="openai-compatible", capabilities=("main_search",)),
 
     # ---- providers: Exa ----------------------------------------------------
     _f(key="EXA_API_KEY", section="providers", tier="essential", kind="secret",
